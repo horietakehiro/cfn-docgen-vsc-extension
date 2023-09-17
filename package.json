@@ -1,0 +1,95 @@
+{
+  "name": "cfn-docgen-vsc-extension",
+  "displayName": "cfn-docgen-vsc-extension",
+  "description": "invoke cfn-docgen through visual studio code api",
+  "version": "0.9.0",
+  "engines": {
+    "vscode": "^1.82.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "cfn-docgen-vsc-extension.docgen",
+        "title": "cfn-docgen: docgen"
+      },
+      {
+        "command": "cfn-docgen-vsc-extension.docgenBatch",
+        "title": "cfn-docgen: docgen batch"
+      }
+    ],
+    "menus": {
+      "explorer/context": [
+        {
+          "command": "cfn-docgen-vsc-extension.docgen",
+          "group": "2_workspace",
+          "when": "resourceLangId == yaml || resourceLangId == json"
+        },
+        {
+          "command": "cfn-docgen-vsc-extension.docgenBatch",
+          "group": "2_workspace",
+          "when": "explorerResourceIsFolder"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "cfn-docgen-vsc-extension.docgen",
+          "group": "2_workspace",
+          "when": "editorLangId == json || editorLangId == yaml"
+        }
+      ]
+    },
+    "configuration": [
+      {
+        "title": "cfn-docgen",
+        "properties": {
+          "cfn-docgen.OutputRootDirectory": {
+            "type": "string",
+            "default": ".cfn-docgen/",
+            "description": "output root directory for generated documents"
+          },
+          "cfn-docgen.Debug": {
+            "type": "boolean",
+            "default": false,
+            "description": "if true, enable debug logging"
+          },
+          "cfn-docgen.OpenPreview": {
+            "type": "boolean",
+            "default": true,
+            "description": "if true, automatically open markdown preview right after the document is generated"
+          }
+        }
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src --ext ts",
+    "test": "node ./out/test/runTest.js"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.1",
+    "@types/node": "16.x",
+    "@types/vscode": "^1.82.0",
+    "@typescript-eslint/eslint-plugin": "^6.4.1",
+    "@typescript-eslint/parser": "^6.4.1",
+    "@vscode/test-electron": "^2.3.4",
+    "eslint": "^8.47.0",
+    "glob": "^10.3.3",
+    "mocha": "^10.2.0",
+    "typescript": "^5.1.6",
+    "vscode-extension-tester": "^5.9.1"
+  },
+  "dependencies": {
+    "@types/chai": "^4.3.6",
+    "chai": "^4.3.8",
+    "mocha-param": "^2.0.1"
+  }
+}
