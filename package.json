@@ -6,6 +6,13 @@
   "engines": {
     "vscode": "^1.82.0"
   },
+  "publisher": "horietakehiromarketplace",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/horietakehiro/cfn-docgen-vsc-extension.git"
+  },
+  "homepage": "https://github.com/horietakehiro/cfn-docgen-vsc-extension/blob/master/README.md",
+  "license": "MIT",
   "categories": [
     "Other"
   ],
