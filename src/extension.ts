@@ -3,6 +3,7 @@ import { ExecException, exec, execSync } from 'child_process';
 import path = require('path');
 
 const logs = vscode.window.createOutputChannel("cfn-docgen")
+let resourceTypes: string[] = []
 
 export const currentWorkspaceFolder = async () => {
 	const folders = vscode.workspace.workspaceFolders ?? [];
@@ -46,12 +47,18 @@ export const debug = () => {
 	return debug
 }
 
-export const invokeDocgen = async (source: vscode.Uri, dest: vscode.Uri, isBatch:boolean) => {
+export const invokeDocgen = async (source: vscode.Uri, dest: vscode.Uri, isBatch: boolean) => {
 	let command = `cfn-docgen docgen -s ${source.path} -d ${dest.path}`
-	if (debug()) {command += " --debug"}
+	const customResourceSpecification = vscode.workspace.getConfiguration(
+		"cfn-docgen"
+	).get<string | null>("CustomResourceSpecificationPath")
+	if (customResourceSpecification !== undefined && customResourceSpecification !== "") {
+		command += ` -c ${customResourceSpecification}`
+	}
+	if (debug()) { command += " --debug" }
 
 	vscode.window.withProgress(
-		{location: vscode.ProgressLocation.Notification, cancellable: false},
+		{ location: vscode.ProgressLocation.Notification, cancellable: false },
 		async (progress) => {
 			progress.report({
 				message: "cfn-docgen now in progress..."
@@ -64,7 +71,7 @@ export const invokeDocgen = async (source: vscode.Uri, dest: vscode.Uri, isBatch
 					vscode.window.showErrorMessage(err.message)
 				}
 
-				if (debug()) {logs.appendLine(stderr)}
+				if (debug()) { logs.appendLine(stderr) }
 				logs.appendLine(stdout)
 
 				if (stdout.includes("[ERROR]")) {
@@ -79,6 +86,54 @@ export const invokeDocgen = async (source: vscode.Uri, dest: vscode.Uri, isBatch
 			})
 		}
 	)
+}
+
+export const invokeListResourceTypes = (): string[] => {
+	let command = `cfn-docgen skelton --list`
+	const customResourceSpecification = vscode.workspace.getConfiguration(
+		"cfn-docgen"
+	).get<string | null>("CustomResourceSpecificationPath")
+	if (customResourceSpecification !== undefined && customResourceSpecification !== "") {
+		command += ` -c ${customResourceSpecification}`
+	}
+	logs.appendLine(`invoke cfn-docgen with command: ${command}`)
+	let resourceTypes: string[] = []
+	try {
+		const stdout = execSync(command)
+		resourceTypes = stdout.toString().split("\n").filter(r => !r.startsWith("20") && r !== "")
+	} catch (error) {
+		vscode.window.showErrorMessage(`cfn-docgen fails: ${(error as Error).message}`)
+	}
+	return resourceTypes
+}
+
+export const invokeSkelton = (resourceType: string): string => {
+	let command = `cfn-docgen skelton -t ${resourceType}`
+
+	const customResourceSpecification = vscode.workspace.getConfiguration(
+		"cfn-docgen"
+	).get<string | null>("CustomResourceSpecificationPath")
+	if (customResourceSpecification !== undefined && customResourceSpecification !== "") {
+		command += ` -c ${customResourceSpecification}`
+	}
+
+	const format = vscode.workspace.getConfiguration(
+		"cfn-docgen"
+	).get<string>("SkeltonFormat")
+	if (format !== undefined) {
+		command += ` -f ${format}`
+	}
+
+	if (debug()) { command += " --debug" }
+	logs.appendLine(`invoke cfn-docgen with command: ${command}`)
+
+	try {
+		const stdout = execSync(command)
+		return stdout.toString().split("\n").filter(r => !r.startsWith("20") && r !== "").join("\n")
+	} catch (error) {
+		vscode.window.showErrorMessage(`cfn-docgen generate skelton fails for ${resourceType}. ${(error as Error).message}`)
+	}
+	return ""
 }
 
 export function activate(context: vscode.ExtensionContext) {
@@ -124,6 +179,34 @@ export function activate(context: vscode.ExtensionContext) {
 		invokeDocgen(definedSourceDir, destDir, isBatch)
 	});
 	context.subscriptions.push(docgenBatch)
+
+	const resourceTypeSkelton = vscode.commands.registerTextEditorCommand("cfn-docgen-vsc-extension.skelton", async (editor, edit) => {
+		if (resourceTypes.length === 0) {
+			resourceTypes = invokeListResourceTypes()
+			if (resourceTypes.length === 0) {
+				return
+			}
+		}
+		const selectedResourceType = await vscode.window.showQuickPick(
+			resourceTypes,
+			{
+				canPickMany: false,
+				ignoreFocusOut: false,
+				title: "select resource type",
+			}
+		)
+
+		if (selectedResourceType === undefined) {
+			return
+		}
+		logs.appendLine(`selected resource type is ${selectedResourceType}`)
+		const skelton = invokeSkelton(selectedResourceType)
+		editor.edit((editBuilder) => {
+			editBuilder.insert(editor.selection.active, skelton)
+		})
+	})
+	context.subscriptions.push(resourceTypeSkelton)
+
 }
 
 export function deactivate() { }

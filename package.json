@@ -2,7 +2,7 @@
   "name": "cfn-docgen-vsc-extension",
   "displayName": "cfn-docgen-vsc-extension",
   "description": "invoke cfn-docgen through visual studio code api",
-  "version": "0.9.0",
+  "version": "0.10.0",
   "engines": {
     "vscode": "^1.82.0"
   },
@@ -27,6 +27,10 @@
       {
         "command": "cfn-docgen-vsc-extension.docgenBatch",
         "title": "cfn-docgen: docgen batch"
+      },
+      {
+        "command": "cfn-docgen-vsc-extension.skelton",
+        "title": "cfn-docgen: skelton"
       }
     ],
     "menus": {
@@ -47,6 +51,11 @@
           "command": "cfn-docgen-vsc-extension.docgen",
           "group": "2_workspace",
           "when": "editorLangId == json || editorLangId == yaml"
+        },
+        {
+          "command": "cfn-docgen-vsc-extension.skelton",
+          "group": "2_workspace",
+          "when": "editorLangId == json || editorLangId == yaml"
         }
       ]
     },
@@ -59,6 +68,11 @@
             "default": ".cfn-docgen/",
             "description": "output root directory for generated documents"
           },
+          "cfn-docgen.CustomResourceSpecificationPath": {
+            "type": "string",
+            "default": "",
+            "description": "absolute path for your custom resource specification json file"
+          },
           "cfn-docgen.Debug": {
             "type": "boolean",
             "default": false,
@@ -68,6 +82,14 @@
             "type": "boolean",
             "default": true,
             "description": "if true, automatically open markdown preview right after the document is generated"
+          },
+          "cfn-docgen.SkeltonFormat": {
+            "type": "string",
+            "enum": [
+              "json", "yaml"
+            ],
+            "default": "yaml",
+            "description": "skelton format"
           }
         }
       }

@@ -6,6 +6,7 @@ cfn-docgen-vsc-extension invokes [cfn-docgen](https://github.com/horietakehiro/c
 
 - invoke cfn-docgen command line tool via visual studio code's interfaces.
 - make it easy to preview generated documents.
+- generate resource definition skelton for each resources
 
 ## Usage
 
@@ -17,6 +18,11 @@ cfn-docgen-vsc-extension invokes [cfn-docgen](https://github.com/horietakehiro/c
 
 ![multi-dest-from-multi-source](./images/multi-dest-multi-source.gif)
 
+### Generate skelton for speficied resources type
+
+![skelton](./images/skelton.gif)
+
+
 ## Requirements
 
 **This extension is just a wrapper for cfn-docgen. So you need to also install [cfn-docgen command line tool](https://github.com/horietakehiro/cfn-docgen#cli).**
@@ -27,6 +33,8 @@ This extension contributes the following settings:
 
 * `cfn-docgen.OutputRootDirectory`: output root directory for generated documents
 * `cfn-docgen.OpenPreview`: if true, automatically open markdown preview right after the document is generated
+* `cfn-docgen.CustomResourceSpecificationPath`: absolute path for your custom resource specification json file
+* `cfn-docgen.SkeltonFormat`: skelton format
 * `cfn-docgen.Debug`: if true, enable debug logging
 
 ## Known Issues
