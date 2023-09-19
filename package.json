@@ -2,7 +2,7 @@
   "name": "cfn-docgen-vsc-extension",
   "displayName": "cfn-docgen-vsc-extension",
   "description": "invoke cfn-docgen through visual studio code api",
-  "version": "0.10.1",
+  "version": "0.11.0",
   "engines": {
     "vscode": "^1.82.0"
   },
@@ -67,6 +67,11 @@
             "type": "string",
             "default": ".cfn-docgen/",
             "description": "output root directory for generated documents"
+          },
+          "cfn-docgen.CommandPath": {
+            "type": "string",
+            "default": "cfn-docgen",
+            "description": "path for executing cfn-docgen command"
           },
           "cfn-docgen.CustomResourceSpecificationPath": {
             "type": "string",

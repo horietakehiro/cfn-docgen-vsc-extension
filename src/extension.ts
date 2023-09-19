@@ -48,7 +48,10 @@ export const debug = () => {
 }
 
 export const invokeDocgen = async (source: vscode.Uri, dest: vscode.Uri, isBatch: boolean) => {
-	let command = `cfn-docgen docgen -s ${source.path} -d ${dest.path}`
+	const commandPath  = vscode.workspace.getConfiguration(
+		"cfn-docgen"
+	).get<string>("CommandPath") ?? "cfn-docgen"
+	let command = `${commandPath} docgen -s ${source.path} -d ${dest.path}`
 	const customResourceSpecification = vscode.workspace.getConfiguration(
 		"cfn-docgen"
 	).get<string | null>("CustomResourceSpecificationPath")
@@ -89,7 +92,10 @@ export const invokeDocgen = async (source: vscode.Uri, dest: vscode.Uri, isBatch
 }
 
 export const invokeListResourceTypes = (): string[] => {
-	let command = `cfn-docgen skelton --list`
+	const commandPath  = vscode.workspace.getConfiguration(
+		"cfn-docgen"
+	).get<string>("CommandPath") ?? "cfn-docgen"
+	let command = `${commandPath} skelton --list`
 	const customResourceSpecification = vscode.workspace.getConfiguration(
 		"cfn-docgen"
 	).get<string | null>("CustomResourceSpecificationPath")
@@ -108,7 +114,10 @@ export const invokeListResourceTypes = (): string[] => {
 }
 
 export const invokeSkelton = (resourceType: string): string => {
-	let command = `cfn-docgen skelton -t ${resourceType}`
+	const commandPath  = vscode.workspace.getConfiguration(
+		"cfn-docgen"
+	).get<string>("CommandPath") ?? "cfn-docgen"
+	let command = `${commandPath} skelton -t ${resourceType}`
 
 	const customResourceSpecification = vscode.workspace.getConfiguration(
 		"cfn-docgen"
