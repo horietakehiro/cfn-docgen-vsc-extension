@@ -18,7 +18,7 @@ cfn-docgen-vsc-extension invokes [cfn-docgen](https://github.com/horietakehiro/c
 
 ![multi-dest-from-multi-source](./images/multi-dest-multi-source.gif)
 
-### Generate skelton for speficied resources type
+### Generate skelton for specified resources type
 
 ![skelton](./images/skelton.gif)
 
