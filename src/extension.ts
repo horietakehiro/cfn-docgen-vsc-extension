@@ -1,7 +1,31 @@
 import * as vscode from 'vscode';
 import { ExecException, exec, execSync } from 'child_process';
 import path = require('path');
+import { config } from 'process';
 
+type Configuration = {
+	outputRootDirectory: string
+	commandPath: String
+	customResourceSpecificationPath: string
+	skeltonFormat: "yaml" | "json",
+	region: "us-east-2" | "us-east-1" | "us-west-1" | "us-west-2" | "af-south-1" | "ap-east-1" | "ap-south-2" | "ap-southeast-3" | "ap-southeast-4" | "ap-south-1" | "ap-northeast-3" | "ap-northeast-2" | "ap-southeast-1" | "ap-southeast-2" | "ap-northeast-1" | "ca-central-1" | "eu-central-1" | "eu-west-1" | "eu-west-2" | "eu-south-1" | "eu-west-3" | "eu-south-2" | "eu-north-1" | "eu-central-2" | "il-central-1" | "me-south-1" | "me-central-1" | "sa-east-1" | "us-gov-east-1" | "us-gov-west-1"
+	openPreview: boolean
+	debug: boolean
+}
+
+export const getConfiguration = (): Configuration => {
+	const conf = vscode.workspace.getConfiguration("cfn-docgen")
+	return {
+		outputRootDirectory: conf.get("OutputRootDirectory") ?? ".cfn-docgen/",
+		commandPath: conf.get("CommandPath") ?? "cfn-docgen",
+		customResourceSpecificationPath: conf.get("CustomResourceSpecificationPath") ?? "",
+		debug: conf.get("Debug") ?? false,
+		openPreview: conf.get("OpenPreview") ?? true,
+		skeltonFormat: conf.get("SkeltonFormat") ?? "yaml",
+		region: conf.get("Region") ?? "us-east-1",
+	}
+
+}
 const logs = vscode.window.createOutputChannel("cfn-docgen")
 let resourceTypes: string[] = []
 
@@ -18,11 +42,9 @@ export const currentWorkspaceFolder = async () => {
 	throw Error('workspace not open.');
 };
 
-export const documentDestPath = async (source: vscode.Uri, isBatch: boolean): Promise<vscode.Uri> => {
+export const documentDestPath = async (source: vscode.Uri, isBatch: boolean, conf: Configuration): Promise<vscode.Uri> => {
 	const workspaceFolder = await currentWorkspaceFolder()
-	const baseDir = vscode.workspace.getConfiguration(
-		"cfn-docgen").get<string>("OutputRootDirectory"
-		) ?? ".cfn-docgen"
+	const baseDir = conf.outputRootDirectory
 	if (isBatch) {
 		const destPath = path.join(
 			workspaceFolder.uri.fsPath, baseDir,
@@ -39,26 +61,12 @@ export const documentDestPath = async (source: vscode.Uri, isBatch: boolean): Pr
 	return vscode.Uri.file(destPath)
 }
 
-export const debug = () => {
-	const debug = vscode.workspace.getConfiguration(
-		"cfn-docgen").get<boolean>("Debug"
-		) ?? false
-
-	return debug
-}
-
-export const invokeDocgen = async (source: vscode.Uri, dest: vscode.Uri, isBatch: boolean) => {
-	const commandPath  = vscode.workspace.getConfiguration(
-		"cfn-docgen"
-	).get<string>("CommandPath") ?? "cfn-docgen"
-	let command = `${commandPath} docgen -s ${source.fsPath} -d ${dest.fsPath}`
-	const customResourceSpecification = vscode.workspace.getConfiguration(
-		"cfn-docgen"
-	).get<string | null>("CustomResourceSpecificationPath")
-	if (customResourceSpecification !== undefined && customResourceSpecification !== "") {
-		command += ` -c ${customResourceSpecification}`
+export const invokeDocgen = async (source: vscode.Uri, dest: vscode.Uri, isBatch: boolean, conf: Configuration) => {
+	let command = `${conf.commandPath} docgen -s ${source.fsPath} -d ${dest.fsPath} -r ${conf.region}`
+	if (conf.customResourceSpecificationPath !== "") {
+		command += ` -c ${conf.customResourceSpecificationPath}`
 	}
-	if (debug()) { command += " --debug" }
+	if (conf.debug) { command += " --debug" }
 
 	vscode.window.withProgress(
 		{ location: vscode.ProgressLocation.Notification, cancellable: false },
@@ -74,16 +82,18 @@ export const invokeDocgen = async (source: vscode.Uri, dest: vscode.Uri, isBatch
 					vscode.window.showErrorMessage(err.message)
 				}
 
-				if (debug()) { logs.appendLine(stderr) }
+				if (conf.debug) { logs.appendLine(stderr) }
 				logs.appendLine(stdout)
-
 				if (stdout.includes("[ERROR]")) {
-					vscode.window.showErrorMessage(stdout)
-					return
+					vscode.window.showErrorMessage(stdout.split("\n").filter(s => s.startsWith("[ERROR]")).join("\n"))
 				}
-				vscode.window.showInformationMessage(stdout)
-				const openPreview = vscode.workspace.getConfiguration("cfn-docgen").get("OpenPreview") ?? true
-				if (!isBatch && openPreview) {
+				if (stdout.includes("[WARNING]")) {
+					vscode.window.showWarningMessage(stdout.split("\n").filter(s => s.startsWith("[WARNING]")).join("\n"))
+				}
+				if (stdout.includes("[INFO]")) {
+					vscode.window.showInformationMessage(stdout.split("\n").filter(s => s.startsWith("[INFO]")).join("\n"))
+				}
+				if (!isBatch && conf.openPreview) {
 					await vscode.commands.executeCommand("markdown.showPreview", dest);
 				}
 			})
@@ -91,16 +101,10 @@ export const invokeDocgen = async (source: vscode.Uri, dest: vscode.Uri, isBatch
 	)
 }
 
-export const invokeListResourceTypes = (): string[] => {
-	const commandPath  = vscode.workspace.getConfiguration(
-		"cfn-docgen"
-	).get<string>("CommandPath") ?? "cfn-docgen"
-	let command = `${commandPath} skelton --list`
-	const customResourceSpecification = vscode.workspace.getConfiguration(
-		"cfn-docgen"
-	).get<string | null>("CustomResourceSpecificationPath")
-	if (customResourceSpecification !== undefined && customResourceSpecification !== "") {
-		command += ` -c ${customResourceSpecification}`
+export const invokeListResourceTypes = (conf: Configuration): string[] => {
+	let command = `${conf.commandPath} skelton --list -r ${conf.region}`
+	if (conf.customResourceSpecificationPath !== "") {
+		command += ` -c ${conf.customResourceSpecificationPath}`
 	}
 	logs.appendLine(`invoke cfn-docgen with command: ${command}`)
 	let resourceTypes: string[] = []
@@ -113,27 +117,13 @@ export const invokeListResourceTypes = (): string[] => {
 	return resourceTypes
 }
 
-export const invokeSkelton = (resourceType: string): string => {
-	const commandPath  = vscode.workspace.getConfiguration(
-		"cfn-docgen"
-	).get<string>("CommandPath") ?? "cfn-docgen"
-	let command = `${commandPath} skelton -t ${resourceType}`
-
-	const customResourceSpecification = vscode.workspace.getConfiguration(
-		"cfn-docgen"
-	).get<string | null>("CustomResourceSpecificationPath")
-	if (customResourceSpecification !== undefined && customResourceSpecification !== "") {
-		command += ` -c ${customResourceSpecification}`
+export const invokeSkelton = (resourceType: string, conf: Configuration): string => {
+	let command = `${conf.commandPath} skelton -t ${resourceType} -r ${conf.region}`
+	if (conf.customResourceSpecificationPath !== "") {
+		command += ` -c ${conf.customResourceSpecificationPath}`
 	}
-
-	const format = vscode.workspace.getConfiguration(
-		"cfn-docgen"
-	).get<string>("SkeltonFormat")
-	if (format !== undefined) {
-		command += ` -f ${format}`
-	}
-
-	if (debug()) { command += " --debug" }
+	command += ` -f ${conf.skeltonFormat}`
+	if (conf.debug) { command += " --debug" }
 	logs.appendLine(`invoke cfn-docgen with command: ${command}`)
 
 	try {
@@ -150,6 +140,7 @@ export function activate(context: vscode.ExtensionContext) {
 	console.log('Congratulations, your extension "cfn-docgen-vsc-extension" is now active!');
 
 	let docgen = vscode.commands.registerCommand('cfn-docgen-vsc-extension.docgen', async (sourceFile: vscode.Uri | undefined) => {
+		const conf = getConfiguration()
 		let definedSourceFile = sourceFile
 		// give file value manually from picker
 		if (definedSourceFile === undefined) {
@@ -164,12 +155,13 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 
 		const isBatch = false
-		const destFile = await documentDestPath(definedSourceFile, isBatch)
-		invokeDocgen(definedSourceFile, destFile, isBatch)
+		const destFile = await documentDestPath(definedSourceFile, isBatch, conf)
+		invokeDocgen(definedSourceFile, destFile, isBatch, conf)
 	});
 	context.subscriptions.push(docgen);
 
 	let docgenBatch = vscode.commands.registerCommand('cfn-docgen-vsc-extension.docgenBatch', async (sourceDir: vscode.Uri | undefined) => {
+		const conf = getConfiguration()
 		let definedSourceDir = sourceDir
 
 		// give folder value manually from picker
@@ -184,14 +176,16 @@ export function activate(context: vscode.ExtensionContext) {
 			definedSourceDir = dirs[0]
 		}
 		const isBatch = true
-		const destDir = await documentDestPath(definedSourceDir, isBatch)
-		invokeDocgen(definedSourceDir, destDir, isBatch)
+		const destDir = await documentDestPath(definedSourceDir, isBatch, conf)
+		invokeDocgen(definedSourceDir, destDir, isBatch, conf)
 	});
 	context.subscriptions.push(docgenBatch)
 
 	const resourceTypeSkelton = vscode.commands.registerTextEditorCommand("cfn-docgen-vsc-extension.skelton", async (editor, edit) => {
+		const conf = getConfiguration()
+
 		if (resourceTypes.length === 0) {
-			resourceTypes = invokeListResourceTypes()
+			resourceTypes = invokeListResourceTypes(conf)
 			if (resourceTypes.length === 0) {
 				return
 			}
@@ -209,7 +203,7 @@ export function activate(context: vscode.ExtensionContext) {
 			return
 		}
 		logs.appendLine(`selected resource type is ${selectedResourceType}`)
-		const skelton = invokeSkelton(selectedResourceType)
+		const skelton = invokeSkelton(selectedResourceType, conf)
 		editor.edit((editBuilder) => {
 			editBuilder.insert(editor.selection.active, skelton)
 		})
