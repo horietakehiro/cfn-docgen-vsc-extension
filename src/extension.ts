@@ -25,16 +25,16 @@ export const documentDestPath = async (source: vscode.Uri, isBatch: boolean): Pr
 		) ?? ".cfn-docgen"
 	if (isBatch) {
 		const destPath = path.join(
-			workspaceFolder.uri.path, baseDir,
+			workspaceFolder.uri.fsPath, baseDir,
 		)
 		return vscode.Uri.file(destPath)
 	}
 
-	const sourceDir = path.dirname(source.path)
-	const destMidDir = sourceDir.replace(workspaceFolder.uri.path, "")
-	const sourceBasePrefix = path.basename(source.path).split(".")[0]
+	const sourceDir = path.dirname(source.fsPath)
+	const destMidDir = sourceDir.replace(workspaceFolder.uri.fsPath, "")
+	const sourceBasePrefix = path.basename(source.fsPath).split(".")[0]
 	const destPath = path.join(
-		workspaceFolder.uri.path, baseDir, destMidDir, `${sourceBasePrefix}.md`
+		workspaceFolder.uri.fsPath, baseDir, destMidDir, `${sourceBasePrefix}.md`
 	)
 	return vscode.Uri.file(destPath)
 }
@@ -51,7 +51,7 @@ export const invokeDocgen = async (source: vscode.Uri, dest: vscode.Uri, isBatch
 	const commandPath  = vscode.workspace.getConfiguration(
 		"cfn-docgen"
 	).get<string>("CommandPath") ?? "cfn-docgen"
-	let command = `${commandPath} docgen -s ${source.path} -d ${dest.path}`
+	let command = `${commandPath} docgen -s ${source.fsPath} -d ${dest.fsPath}`
 	const customResourceSpecification = vscode.workspace.getConfiguration(
 		"cfn-docgen"
 	).get<string | null>("CustomResourceSpecificationPath")
