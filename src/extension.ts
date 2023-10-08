@@ -158,9 +158,9 @@ export const documentDestPath = async (source: vscode.Uri, isBatch: boolean, con
 }
 
 export const invokeDocgen = async (source: vscode.Uri, dest: vscode.Uri, isBatch: boolean, conf: Configuration) => {
-	let command = `${conf.commandPath} docgen -s '${source.fsPath}' -d '${dest.fsPath}' -r ${conf.region}`
+	let command = `${conf.commandPath} docgen -s ${source.fsPath} -d ${dest.fsPath} -r ${conf.region}`
 	if (conf.customResourceSpecificationPath !== "") {
-		command += ` -c '${conf.customResourceSpecificationPath}'`
+		command += ` -c ${conf.customResourceSpecificationPath}`
 	}
 	if (conf.debug) { command += " --debug" }
 
@@ -200,7 +200,7 @@ export const invokeDocgen = async (source: vscode.Uri, dest: vscode.Uri, isBatch
 export const invokeListResourceTypes = (conf: Configuration): string[] => {
 	let command = `${conf.commandPath} skelton --list -r ${conf.region}`
 	if (conf.customResourceSpecificationPath !== "") {
-		command += ` -c '${conf.customResourceSpecificationPath}'`
+		command += ` -c ${conf.customResourceSpecificationPath}`
 	}
 	logs.appendLine(`invoke cfn-docgen with command: ${command}`)
 	let resourceTypes: string[] = []
@@ -216,7 +216,7 @@ export const invokeListResourceTypes = (conf: Configuration): string[] => {
 export const invokeSkelton = (resourceType: string, conf: Configuration): string => {
 	let command = `${conf.commandPath} skelton -t ${resourceType} -r ${conf.region}`
 	if (conf.customResourceSpecificationPath !== "") {
-		command += ` -c '${conf.customResourceSpecificationPath}'`
+		command += ` -c ${conf.customResourceSpecificationPath}`
 	}
 	command += ` -f ${conf.skeltonFormat}`
 	if (conf.debug) { command += " --debug" }
@@ -234,6 +234,7 @@ export const invokeSkelton = (resourceType: string, conf: Configuration): string
 export async function activate(context: vscode.ExtensionContext) {
 
 	logs.appendLine('Congratulations, your extension "cfn-docgen-vsc-extension" is now active!');
+	logs.appendLine(vscode.env.uiKind.toString())
 	try {
 		const conf = getConfiguration()
 		const latestVersion = await setCLILatestVersion()
