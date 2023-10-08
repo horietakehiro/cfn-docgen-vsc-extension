@@ -2,7 +2,7 @@
   "name": "cfn-docgen-vsc-extension",
   "displayName": "cfn-docgen-vsc-extension",
   "description": "invoke cfn-docgen through visual studio code api",
-  "version": "0.12.0",
+  "version": "0.13.0",
   "engines": {
     "vscode": "^1.82.0"
   },
@@ -16,7 +16,9 @@
   "categories": [
     "Other"
   ],
-  "activationEvents": [],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
   "main": "./out/extension.js",
   "contributes": {
     "commands": [

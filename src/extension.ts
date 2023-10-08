@@ -2,6 +2,12 @@ import * as vscode from 'vscode';
 import { ExecException, exec, execSync } from 'child_process';
 import path = require('path');
 import { config } from 'process';
+import { RequestOptions, get, request } from 'https';
+
+const logs = vscode.window.createOutputChannel("cfn-docgen")
+let resourceTypes: string[] = []
+// let isCLIInstalled: boolean = false
+// let latestCLIVersion: string = ""
 
 type Configuration = {
 	outputRootDirectory: string
@@ -12,6 +18,7 @@ type Configuration = {
 	openPreview: boolean
 	debug: boolean
 }
+
 
 export const getConfiguration = (): Configuration => {
 	const conf = vscode.workspace.getConfiguration("cfn-docgen")
@@ -26,8 +33,97 @@ export const getConfiguration = (): Configuration => {
 	}
 
 }
-const logs = vscode.window.createOutputChannel("cfn-docgen")
-let resourceTypes: string[] = []
+
+type PypiPackageVersion  = {
+	upload_time: string
+}
+type PypiPackageReleases = {
+	[version: string]: PypiPackageVersion[]
+}
+export const setCLILatestVersion = (): Promise<string> => {
+	return new Promise<string>((resolve, reject) => {
+		logs.appendLine('get latest cli version from PyPI')
+		const reqOptions:RequestOptions = {
+			hostname: "pypi.org",
+			path: "/pypi/cfn-docgen/json",
+			method: "GET",
+			headers: {
+				"Content-Type": "application/json",
+			},
+		}
+		var data:Uint8Array[] = []
+		get(reqOptions, ((res) => {
+			res.on("data", ((d) => {
+				data.push(d)
+			}))
+			res.on("end", () => {
+				logs.appendLine('parse json from PyPI')
+				const packageInfo = JSON.parse(Buffer.concat(data).toString())
+				const releases: PypiPackageReleases = packageInfo.releases
+				const sortedReleases = Object.entries(releases).sort(
+					([, v1], [, v2]) => {
+						return v1[0].upload_time > v2[0].upload_time ? -1 : 1
+					})
+				const latestVersion = sortedReleases[0][0]
+				logs.appendLine(`latest cli version in PyPI is ${latestVersion}`)
+				resolve(latestVersion)
+			})
+			res.on("error", ((error) => {
+				reject(error)
+			}))
+		}))
+	})
+}
+
+export const promptInstallLatestCLI = async (latestVersion:string, conf: Configuration) => {
+	const versionCommand = `${conf.commandPath} --version`
+	try {
+		// check if cli is properly installed
+		const stdout = execSync(versionCommand)
+		logs.appendLine(stdout.toString())
+
+		const versions = stdout.toString().match(/\d+\.\d+\.\d+/)
+		if (versions === null || versions.length !== 1) {
+			throw new Error("cfn-docgen may not be properly installed.")
+		}
+		// check if cli is latest version
+		const version = versions[0]
+		logs.appendLine(`current local cli version is ${version}, while latest cli version in PyPI is ${latestVersion}`)
+		if (version !== latestVersion) {
+			throw new Error("latest version of cfn-docgen may not be installed.")
+		}
+
+	} catch (error) {
+		logs.appendLine((error as Error).message)
+		vscode.window.showInformationMessage(
+			`latest version of cfn-docgen may not be installed`, "Install", "Ignore",
+		).then(answer => {
+			// if not installed, show prompt to install latest version cli
+			if (answer === "Ignore") {return}
+			const installCommand = `pip install cfn-docgen --upgrade`
+			vscode.window.withProgress(
+				{ location: vscode.ProgressLocation.Notification, cancellable: false },
+				async (progress) => {
+					progress.report({
+						message: "cfn-docgen now in installing..."
+					})
+					logs.appendLine(`install cfn-docgen with command: ${installCommand}`)
+					exec(installCommand, async (err, stdout, stderr) => {
+						if (err) {
+							logs.appendLine(err.message)
+							vscode.window.showErrorMessage(err.message)
+							return
+						}
+						logs.appendLine(stdout)
+						const versionInfo = execSync(versionCommand)
+						logs.appendLine(versionInfo.toString())
+						vscode.window.showInformationMessage(`successfull installed ${versionInfo.toString()}`)
+					})
+				}
+			)
+		})
+	}
+}
 
 export const currentWorkspaceFolder = async () => {
 	const folders = vscode.workspace.workspaceFolders ?? [];
@@ -135,12 +231,21 @@ export const invokeSkelton = (resourceType: string, conf: Configuration): string
 	return ""
 }
 
-export function activate(context: vscode.ExtensionContext) {
+export async function activate(context: vscode.ExtensionContext) {
 
-	console.log('Congratulations, your extension "cfn-docgen-vsc-extension" is now active!');
+	logs.appendLine('Congratulations, your extension "cfn-docgen-vsc-extension" is now active!');
+	try {
+		const conf = getConfiguration()
+		const latestVersion = await setCLILatestVersion()
+		promptInstallLatestCLI(latestVersion, conf)	
+	} catch (error) {
+		logs.appendLine((error as Error).message)
+		vscode.window.showErrorMessage((error as Error).message)
+	}
 
 	let docgen = vscode.commands.registerCommand('cfn-docgen-vsc-extension.docgen', async (sourceFile: vscode.Uri | undefined) => {
 		const conf = getConfiguration()
+
 		let definedSourceFile = sourceFile
 		// give file value manually from picker
 		if (definedSourceFile === undefined) {
