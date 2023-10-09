@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
-import { ExecException, exec, execSync } from 'child_process';
+import { ExecException, ProcessEnvOptions, exec, execSync } from 'child_process';
 import path = require('path');
-import { config } from 'process';
+import { config, openStdin } from 'process';
 import { RequestOptions, get, request } from 'https';
 
 const logs = vscode.window.createOutputChannel("cfn-docgen")
@@ -17,6 +17,20 @@ type Configuration = {
 	region: "us-east-2" | "us-east-1" | "us-west-1" | "us-west-2" | "af-south-1" | "ap-east-1" | "ap-south-2" | "ap-southeast-3" | "ap-southeast-4" | "ap-south-1" | "ap-northeast-3" | "ap-northeast-2" | "ap-southeast-1" | "ap-southeast-2" | "ap-northeast-1" | "ca-central-1" | "eu-central-1" | "eu-west-1" | "eu-west-2" | "eu-south-1" | "eu-west-3" | "eu-south-2" | "eu-north-1" | "eu-central-2" | "il-central-1" | "me-south-1" | "me-central-1" | "sa-east-1" | "us-gov-east-1" | "us-gov-west-1"
 	openPreview: boolean
 	debug: boolean
+}
+
+
+const getShellByOS = (os: NodeJS.Platform):string => {
+	switch (os) {
+		case "linux":
+			return "/bin/bash"
+		case "darwin":
+			return "/bin/bash"
+		case "win32":
+			return "powershell.exe"
+		default:
+			return "/bin/bash"
+	}
 }
 
 
@@ -79,7 +93,7 @@ export const promptInstallLatestCLI = async (latestVersion:string, conf: Configu
 	const versionCommand = `${conf.commandPath} --version`
 	try {
 		// check if cli is properly installed
-		const stdout = execSync(versionCommand)
+		const stdout = execSync(versionCommand, {shell: getShellByOS(process.platform)})
 		logs.appendLine(stdout.toString())
 
 		const versions = stdout.toString().match(/\d+\.\d+\.\d+/)
@@ -108,7 +122,7 @@ export const promptInstallLatestCLI = async (latestVersion:string, conf: Configu
 						message: "cfn-docgen now in installing..."
 					})
 					logs.appendLine(`install cfn-docgen with command: ${installCommand}`)
-					exec(installCommand, async (err, stdout, stderr) => {
+					exec(installCommand, {shell: getShellByOS(process.platform)}, async (err, stdout, stderr) => {
 						if (err) {
 							logs.appendLine(err.message)
 							vscode.window.showErrorMessage(err.message)
@@ -158,9 +172,9 @@ export const documentDestPath = async (source: vscode.Uri, isBatch: boolean, con
 }
 
 export const invokeDocgen = async (source: vscode.Uri, dest: vscode.Uri, isBatch: boolean, conf: Configuration) => {
-	let command = `${conf.commandPath} docgen -s ${source.fsPath} -d ${dest.fsPath} -r ${conf.region}`
+	let command = `${conf.commandPath} docgen -s "${source.fsPath}" -d "${dest.fsPath}" -r ${conf.region}`
 	if (conf.customResourceSpecificationPath !== "") {
-		command += ` -c ${conf.customResourceSpecificationPath}`
+		command += ` -c "${conf.customResourceSpecificationPath}"`
 	}
 	if (conf.debug) { command += " --debug" }
 
@@ -172,7 +186,7 @@ export const invokeDocgen = async (source: vscode.Uri, dest: vscode.Uri, isBatch
 			})
 
 			logs.appendLine(`invoke cfn-docgen with command: ${command}`)
-			exec(command, async (err, stdout, stderr) => {
+			exec(command, {shell: getShellByOS(process.platform)}, async (err, stdout, stderr) => {
 				if (err) {
 					logs.appendLine(err.message)
 					vscode.window.showErrorMessage(err.message)
@@ -200,12 +214,12 @@ export const invokeDocgen = async (source: vscode.Uri, dest: vscode.Uri, isBatch
 export const invokeListResourceTypes = (conf: Configuration): string[] => {
 	let command = `${conf.commandPath} skelton --list -r ${conf.region}`
 	if (conf.customResourceSpecificationPath !== "") {
-		command += ` -c ${conf.customResourceSpecificationPath}`
+		command += ` -c "${conf.customResourceSpecificationPath}"`
 	}
 	logs.appendLine(`invoke cfn-docgen with command: ${command}`)
 	let resourceTypes: string[] = []
 	try {
-		const stdout = execSync(command)
+		const stdout = execSync(command, {shell: getShellByOS(process.platform)})
 		resourceTypes = stdout.toString().split("\n").filter(r => !r.startsWith("20") && r !== "")
 	} catch (error) {
 		vscode.window.showErrorMessage(`cfn-docgen fails: ${(error as Error).message}`)
@@ -216,14 +230,14 @@ export const invokeListResourceTypes = (conf: Configuration): string[] => {
 export const invokeSkelton = (resourceType: string, conf: Configuration): string => {
 	let command = `${conf.commandPath} skelton -t ${resourceType} -r ${conf.region}`
 	if (conf.customResourceSpecificationPath !== "") {
-		command += ` -c ${conf.customResourceSpecificationPath}`
+		command += ` -c "${conf.customResourceSpecificationPath}"`
 	}
 	command += ` -f ${conf.skeltonFormat}`
 	if (conf.debug) { command += " --debug" }
 	logs.appendLine(`invoke cfn-docgen with command: ${command}`)
 
 	try {
-		const stdout = execSync(command)
+		const stdout = execSync(command, {shell: getShellByOS(process.platform)})
 		return stdout.toString().split("\n").filter(r => !r.startsWith("20") && r !== "").join("\n")
 	} catch (error) {
 		vscode.window.showErrorMessage(`cfn-docgen generate skelton fails for ${resourceType}. ${(error as Error).message}`)
@@ -309,7 +323,7 @@ export async function activate(context: vscode.ExtensionContext) {
 			return
 		}
 		logs.appendLine(`selected resource type is ${selectedResourceType}`)
-		const skelton = invokeSkelton(selectedResourceType, conf)
+		const skelton = invokeSkelton(selectedResourceType.replace(/\r?\n|\r/g, " "), conf)
 		editor.edit((editBuilder) => {
 			editBuilder.insert(editor.selection.active, skelton)
 		})
