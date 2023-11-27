@@ -31,8 +31,8 @@
         "title": "cfn-docgen: docgen batch"
       },
       {
-        "command": "cfn-docgen-vsc-extension.skelton",
-        "title": "cfn-docgen: skelton"
+        "command": "cfn-docgen-vsc-extension.skeleton",
+        "title": "cfn-docgen: skeleton"
       }
     ],
     "menus": {
@@ -55,7 +55,7 @@
           "when": "editorLangId == json || editorLangId == yaml"
         },
         {
-          "command": "cfn-docgen-vsc-extension.skelton",
+          "command": "cfn-docgen-vsc-extension.skeleton",
           "group": "2_workspace",
           "when": "editorLangId == json || editorLangId == yaml"
         }
@@ -90,14 +90,14 @@
             "default": true,
             "description": "if true, automatically open markdown preview right after the document is generated"
           },
-          "cfn-docgen.SkeltonFormat": {
+          "cfn-docgen.SkeletonFormat": {
             "type": "string",
             "enum": [
               "json",
               "yaml"
             ],
             "default": "yaml",
-            "description": "skelton format"
+            "description": "skeleton format"
           },
           "cfn-docgen.Region": {
             "type": "string",
